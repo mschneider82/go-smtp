@@ -610,12 +610,22 @@ func TestServer_lmtpOK(t *testing.T) {
 	io.WriteString(c, "Hey <3\r\n")
 	io.WriteString(c, ".\r\n")
 	scanner.Scan()
-
-	if !strings.HasPrefix(scanner.Text(), "250 ") {
+	rcpt1 := scanner.Text()
+	scanner.Scan()
+	rcpt2 := scanner.Text()
+	if !strings.HasPrefix(rcpt1, "250 ") {
 		t.Fatal("Invalid DATA first response:", scanner.Text())
 	}
-	if !strings.HasPrefix(scanner.Text(), "250 ") {
+	if !strings.HasPrefix(rcpt1, "250 ") {
 		t.Fatal("Invalid DATA second response:", scanner.Text())
+	}
+
+	if rcpt1 != "250 2.0.0 <root@gchq.gov.uk> Finished" {
+		t.Fatal("Invalid responce:", rcpt1)
+	}
+
+	if rcpt2 != "250 2.0.0 <root@bnd.bund.de> Finished" {
+		t.Fatal("Invalid responce:", rcpt2)
 	}
 
 	if len(be.messages) != 0 || len(be.anonmsgs) != 1 {

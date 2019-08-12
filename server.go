@@ -22,8 +22,7 @@ type Logger interface {
 	Println(v ...interface{})
 }
 
-// An Option configures a Problem using the functional options paradigm
-// popularized by Rob Pike.
+// An Option configures a Server using functional options
 type Option interface {
 	apply(*Server)
 }

@@ -2,7 +2,9 @@ package smtp
 
 import "io"
 
-// A DefaultSession is returned after successful login or anonymous DefaultSession
+// A DefaultSession can be used as a basic implementation for Session Interface
+// It has already a From and Rcpts[] field, mostly used to embett in your own
+// Session struct.
 type DefaultSession struct {
 	From  string
 	Rcpts []string

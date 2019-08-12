@@ -1,10 +1,11 @@
 # go-smtp
 
 [![GoDoc](https://godoc.org/github.com/mschneider82/go-smtp?status.svg)](https://godoc.org/github.com/mschneider82/go-smtp)
-[![builds.sr.ht status](https://builds.sr.ht/~emersion/go-smtp.svg)](https://builds.sr.ht/~emersion/go-smtp?)
-[![codecov](https://codecov.io/gh/emersion/go-smtp/branch/master/graph/badge.svg)](https://codecov.io/gh/emersion/go-smtp)
+[![codecov](https://codecov.io/gh/mschneider82/go-smtp/branch/master/graph/badge.svg)](https://codecov.io/gh/mschneider82/go-smtp)
 
-An ESMTP client and server library written in Go.
+This is a forked version of go-smtp, changed API to function options.
+Added NewDefaultBackend and DefaultSession for easier usage.
+Client has a own package
 
 ## Features
 
@@ -12,41 +13,6 @@ An ESMTP client and server library written in Go.
 * Support for SMTP [AUTH](https://tools.ietf.org/html/rfc4954) and [PIPELINING](https://tools.ietf.org/html/rfc2920)
 * UTF-8 support for subject and message
 * [LMTP](https://tools.ietf.org/html/rfc2033) support
-
-## Usage
-
-### Client
-
-```go
-package main
-
-import (
-	"log"
-	"strings"
-
-	"github.com/emersion/go-sasl"
-	"github.com/mschneider82/go-smtp"
-)
-
-func main() {
-	// Set up authentication information.
-	auth := sasl.NewPlainClient("", "user@example.com", "password")
-
-	// Connect to the server, authenticate, set the sender and recipient,
-	// and send the email all in one step.
-	to := []string{"recipient@example.net"}
-	msg := strings.NewReader("To: recipient@example.net\r\n" +
-		"Subject: discount Gophers!\r\n" +
-		"\r\n" +
-		"This is the email body.\r\n")
-	err := smtp.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-```
-
-If you need more control, you can use `Client` instead.
 
 ### SMTP Server
 

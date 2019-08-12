@@ -27,7 +27,7 @@ func (be *DefaultBackend) Login(state *ConnectionState, username, password strin
 
 // AnonymousLogin is not implemented in default backend
 func (be *DefaultBackend) AnonymousLogin(state *ConnectionState) (Session, error) {
-	return nil, ErrAuthRequired
+	return be.s, nil
 }
 
 // A SMTP server backend.

@@ -118,6 +118,7 @@ func ExampleNew() {
 		smtp.MaxMessageBytes(1024*1024),
 		smtp.MaxRecipients(50),
 		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
 	).ListenAndServe()
 
 	if err != nil {

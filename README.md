@@ -54,7 +54,6 @@ If you need more control, you can use `Client` instead.
 package main
 
 import (
-	"errors"
 	"io"
 	"io/ioutil"
 	"log"
@@ -88,6 +87,7 @@ func main() {
 		smtp.MaxMessageBytes(1024*1024),
 		smtp.MaxRecipients(50),
 		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
 	).ListenAndServe()
 
 	if err != nil {
@@ -173,6 +173,7 @@ func main() {
 		smtp.MaxMessageBytes(1024*1024),
 		smtp.MaxRecipients(50),
 		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
 		smtp.LMTP(),
 	).ListenAndServe()
 

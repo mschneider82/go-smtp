@@ -5,7 +5,7 @@ packages:
   - bash
   - findutils
 sources:
-  - https://github.com/emersion/go-smtp
+  - https://github.com/mschneider82/go-smtp
 tasks:
   - build: |
       cd go-smtp
@@ -15,5 +15,5 @@ tasks:
       go test -coverprofile=coverage.txt -covermode=atomic ./...
   - upload-coverage: |
       cd go-smtp
-      export CODECOV_TOKEN=3f257f71-a128-4834-8f68-2b534e9f4cb1
+      export CODECOV_TOKEN=2763beaa-33e8-4392-a49a-7a93ffb71c97
       curl -s https://codecov.io/bash | bash

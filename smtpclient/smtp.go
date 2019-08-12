@@ -1,4 +1,4 @@
-// Package smtp implements the Simple Mail Transfer Protocol as defined in RFC 5321.
+// Package smtpclient implements the Simple Mail Transfer Protocol as defined in RFC 5321.
 //
 // It also implements the following extensions:
 //
@@ -10,7 +10,7 @@
 // LMTP (RFC 2033) is also supported.
 //
 // Additional extensions may be handled by other packages.
-package smtp
+package smtpclient
 
 import (
 	"errors"

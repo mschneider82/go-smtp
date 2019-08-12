@@ -14,11 +14,12 @@ import (
 
 	"github.com/emersion/go-sasl"
 	"github.com/mschneider82/go-smtp"
+	"github.com/mschneider82/go-smtp/smtpclient"
 )
 
 func ExampleDial() {
 	// Connect to the remote SMTP server.
-	c, err := smtp.Dial("mail.example.com:25")
+	c, err := smtpclient.Dial("mail.example.com:25")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -65,7 +66,7 @@ func ExampleSendMail_PlainAuth() {
 	hostname := "mail.example.com"
 	auth := sasl.NewPlainClient("", "user@example.com", "password")
 
-	err := smtp.SendMail(hostname+":25", auth, from, recipients, msg)
+	err := smtpclient.SendMail(hostname+":25", auth, from, recipients, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -82,7 +83,7 @@ func ExampleSendMail() {
 		"Subject: discount Gophers!\r\n" +
 		"\r\n" +
 		"This is the email body.\r\n")
-	err := smtp.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
+	err := smtpclient.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
 	if err != nil {
 		log.Fatal(err)
 	}

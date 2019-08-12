@@ -48,9 +48,9 @@ func newDataReader(c *Conn) io.Reader {
 		r: c.text.DotReader(),
 	}
 
-	if c.server.MaxMessageBytes > 0 {
+	if c.server.maxMessageBytes > 0 {
 		dr.limited = true
-		dr.n = int64(c.server.MaxMessageBytes)
+		dr.n = int64(c.server.maxMessageBytes)
 	}
 
 	return dr

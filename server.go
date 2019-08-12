@@ -22,33 +22,136 @@ type Logger interface {
 	Println(v ...interface{})
 }
 
+// An Option configures a Problem using the functional options paradigm
+// popularized by Rob Pike.
+type Option interface {
+	apply(*Server)
+}
+
+type optionFunc func(*Server)
+
+func (f optionFunc) apply(server *Server) { f(server) }
+
+// New generates a new Server
+func NewServer(be Backend, opts ...Option) *Server {
+	server := newServer(be)
+	for _, opt := range opts {
+		opt.apply(server)
+	}
+	return server
+}
+
+func Addr(addr string) Option {
+	return optionFunc(func(server *Server) {
+		server.addr = addr
+	})
+}
+
+func TLSConfig(tlsconfig *tls.Config) Option {
+	return optionFunc(func(server *Server) {
+		server.tlsconfig = tlsconfig
+	})
+}
+
+func LMTP() Option {
+	return optionFunc(func(server *Server) {
+		server.lmtp = true
+	})
+}
+
+func UnixSocket() Option {
+	return optionFunc(func(server *Server) {
+		server.network = "unix"
+	})
+}
+
+func Domain(domain string) Option {
+	return optionFunc(func(server *Server) {
+		server.domain = domain
+	})
+}
+
+func MaxRecipients(maxRcpts int) Option {
+	return optionFunc(func(server *Server) {
+		server.maxRecipients = maxRcpts
+	})
+}
+
+func MaxMessageBytes(maxMsgBytes int) Option {
+	return optionFunc(func(server *Server) {
+		server.maxMessageBytes = maxMsgBytes
+	})
+}
+
+func AllowInsecureAuth() Option {
+	return optionFunc(func(server *Server) {
+		server.allowInsecureAuth = true
+	})
+}
+
+func StrictMode() Option {
+	return optionFunc(func(server *Server) {
+		server.strict = true
+	})
+}
+
+func DebugToWriter(i io.Writer) Option {
+	return optionFunc(func(server *Server) {
+		server.debug = i
+	})
+}
+
+func ErrorLogger(l Logger) Option {
+	return optionFunc(func(server *Server) {
+		server.errorLog = l
+	})
+}
+
+func ReadTimeout(t time.Duration) Option {
+	return optionFunc(func(server *Server) {
+		server.readTimeout = t
+	})
+}
+
+func WriteTimeout(t time.Duration) Option {
+	return optionFunc(func(server *Server) {
+		server.writeTimeout = t
+	})
+}
+
+func DisableAuth() Option {
+	return optionFunc(func(server *Server) {
+		server.authDisabled = true
+	})
+}
+
 // A SMTP server.
 type Server struct {
 	// TCP or Unix address to listen on.
-	Addr string
+	addr string
 	// The server TLS configuration.
-	TLSConfig *tls.Config
+	tlsconfig *tls.Config
 	// Enable LMTP mode, as defined in RFC 2033.
-	LMTP bool
+	lmtp bool
 	// Network defines if tcp or unix socket. default tcp
-	Network string
+	network string
 
-	Domain            string
-	MaxRecipients     int
-	MaxMessageBytes   int
-	AllowInsecureAuth bool
-	Strict            bool
-	Debug             io.Writer
-	ErrorLog          Logger
-	ReadTimeout       time.Duration
-	WriteTimeout      time.Duration
+	domain            string
+	maxRecipients     int
+	maxMessageBytes   int
+	allowInsecureAuth bool
+	strict            bool
+	debug             io.Writer
+	errorLog          Logger
+	readTimeout       time.Duration
+	writeTimeout      time.Duration
 
 	// If set, the AUTH command will not be advertised and authentication
 	// attempts will be rejected. This setting overrides AllowInsecureAuth.
-	AuthDisabled bool
+	authDisabled bool
 
 	// The server backend.
-	Backend Backend
+	backend Backend
 
 	listener net.Listener
 	caps     []string
@@ -59,12 +162,12 @@ type Server struct {
 	conns  map[*Conn]struct{}
 }
 
-// New creates a new SMTP server.
-func NewServer(be Backend) *Server {
+// new creates a new SMTP server.
+func newServer(be Backend) *Server {
 	return &Server{
-		Backend:  be,
+		backend:  be,
 		done:     make(chan struct{}, 1),
-		ErrorLog: log.New(os.Stderr, "smtp/server ", log.LstdFlags),
+		errorLog: log.New(os.Stderr, "smtp/server ", log.LstdFlags),
 		caps:     []string{"PIPELINING", "8BITMIME", "ENHANCEDSTATUSCODES"},
 		auths: map[string]SaslServerFactory{
 			sasl.Plain: func(conn *Conn) sasl.Server {
@@ -157,11 +260,11 @@ func (s *Server) handleConn(c *Conn) error {
 // If s.Addr is blank ":smtp" is used.
 func (s *Server) ListenAndServe() error {
 	network := "tcp"
-	if s.Network == "unix" {
+	if s.network == "unix" {
 		network = "unix"
 	}
 
-	addr := s.Addr
+	addr := s.addr
 	if addr == "" {
 		addr = ":smtp"
 	}
@@ -179,12 +282,12 @@ func (s *Server) ListenAndServe() error {
 //
 // If s.Addr is blank, ":smtps" is used.
 func (s *Server) ListenAndServeTLS() error {
-	addr := s.Addr
+	addr := s.addr
 	if addr == "" {
 		addr = ":smtps"
 	}
 
-	l, err := tls.Listen("tcp", addr, s.TLSConfig)
+	l, err := tls.Listen("tcp", addr, s.tlsconfig)
 	if err != nil {
 		return err
 	}

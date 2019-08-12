@@ -1,4 +1,4 @@
-package smtp_test
+package smtp
 
 import (
 	"bufio"
@@ -11,8 +11,7 @@ import (
 	"strings"
 	"testing"
 	"time"
-
-	"github.com/emersion/go-smtp"
+	//"github.com/mschneider82/go-smtp"
 )
 
 type message struct {
@@ -29,7 +28,7 @@ type backend struct {
 	userErr     error
 }
 
-func (be *backend) Login(_ *smtp.ConnectionState, username, password string) (smtp.Session, error) {
+func (be *backend) Login(_ *ConnectionState, username, password string) (Session, error) {
 	if be.userErr != nil {
 		return &session{}, be.userErr
 	}
@@ -40,7 +39,7 @@ func (be *backend) Login(_ *smtp.ConnectionState, username, password string) (sm
 	return &session{backend: be}, nil
 }
 
-func (be *backend) AnonymousLogin(_ *smtp.ConnectionState) (smtp.Session, error) {
+func (be *backend) AnonymousLogin(_ *ConnectionState) (Session, error) {
 	if be.userErr != nil {
 		return &session{}, be.userErr
 	}
@@ -77,7 +76,7 @@ func (s *session) Rcpt(to string) error {
 	return nil
 }
 
-func (s *session) Data(r io.Reader, d smtp.DataContext) error {
+func (s *session) Data(r io.Reader, d DataContext) error {
 	if b, err := ioutil.ReadAll(r); err != nil {
 		return err
 	} else {
@@ -95,9 +94,9 @@ func (s *session) Data(r io.Reader, d smtp.DataContext) error {
 		d.StartDelivery(ctx, rcpt)
 		go func() {
 			// Do some delivery to a backend here
-			d.SetStatus(rcpt, &smtp.SMTPError{
+			d.SetStatus(rcpt, &SMTPError{
 				Code:         250,
-				EnhancedCode: smtp.EnhancedCode{2, 0, 0},
+				EnhancedCode: EnhancedCode{2, 0, 0},
 				Message:      "Finished",
 			})
 		}()
@@ -105,24 +104,31 @@ func (s *session) Data(r io.Reader, d smtp.DataContext) error {
 	return nil
 }
 
-type serverConfigureFunc func(*smtp.Server)
+type serverConfigureFunc func(*Server)
 
 var (
-	authDisabled = func(s *smtp.Server) {
-		s.AuthDisabled = true
+	authDisabled = func(s *Server) {
+		s.authDisabled = true
 	}
 )
 
-func testServer(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *smtp.Server, c net.Conn, scanner *bufio.Scanner) {
+func testServer(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *Server, c net.Conn, scanner *bufio.Scanner) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	be = new(backend)
-	s = smtp.NewServer(be)
-	s.Domain = "localhost"
-	s.AllowInsecureAuth = true
+	be = &backend{}
+	s = NewServer(
+		be,
+		Domain("localhost"),
+		WriteTimeout(10*time.Second),
+		ReadTimeout(10*time.Second),
+		MaxMessageBytes(1024*1024),
+		MaxRecipients(50),
+		AllowInsecureAuth(),
+	)
+
 	for _, f := range fn {
 		f(s)
 	}
@@ -138,7 +144,7 @@ func testServer(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *smtp.S
 	return
 }
 
-func testServerGreeted(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *smtp.Server, c net.Conn, scanner *bufio.Scanner) {
+func testServerGreeted(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *Server, c net.Conn, scanner *bufio.Scanner) {
 	be, s, c, scanner = testServer(t, fn...)
 
 	scanner.Scan()
@@ -149,7 +155,7 @@ func testServerGreeted(t *testing.T, fn ...serverConfigureFunc) (be *backend, s 
 	return
 }
 
-func testServerEhlo(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *smtp.Server, c net.Conn, scanner *bufio.Scanner, caps map[string]bool) {
+func testServerEhlo(t *testing.T, fn ...serverConfigureFunc) (be *backend, s *Server, c net.Conn, scanner *bufio.Scanner, caps map[string]bool) {
 	be, s, c, scanner = testServerGreeted(t, fn...)
 
 	io.WriteString(c, "EHLO localhost\r\n")
@@ -197,7 +203,7 @@ func TestServer_helo(t *testing.T) {
 	}
 }
 
-func testServerAuthenticated(t *testing.T) (be *backend, s *smtp.Server, c net.Conn, scanner *bufio.Scanner) {
+func testServerAuthenticated(t *testing.T) (be *backend, s *Server, c net.Conn, scanner *bufio.Scanner) {
 	be, s, c, scanner, caps := testServerEhlo(t)
 
 	if _, ok := caps["AUTH PLAIN"]; !ok {
@@ -252,9 +258,9 @@ func TestServerPanicRecover(t *testing.T) {
 	defer s.Close()
 	defer c.Close()
 
-	s.Backend.(*backend).panicOnMail = true
+	s.backend.(*backend).panicOnMail = true
 	// Don't log panic in tests to not confuse people who run 'go test'.
-	s.ErrorLog = log.New(ioutil.Discard, "", 0)
+	s.errorLog = log.New(ioutil.Discard, "", 0)
 
 	io.WriteString(c, "MAIL FROM:<alice@wonderland.book>\r\n")
 	scanner.Scan()
@@ -447,7 +453,7 @@ func TestServer_tooLongMessage(t *testing.T) {
 	be, s, c, scanner := testServerAuthenticated(t)
 	defer s.Close()
 
-	s.MaxMessageBytes = 50
+	s.maxMessageBytes = 50
 
 	io.WriteString(c, "MAIL FROM:<root@nsa.gov>\r\n")
 	scanner.Scan()
@@ -475,7 +481,7 @@ func TestServer_anonymousUserError(t *testing.T) {
 	defer s.Close()
 	defer c.Close()
 
-	be.userErr = smtp.ErrAuthRequired
+	be.userErr = ErrAuthRequired
 
 	io.WriteString(c, "MAIL FROM:<root@nsa.gov>\r\n")
 	scanner.Scan()
@@ -508,17 +514,23 @@ func TestServer_anonymousUserOK(t *testing.T) {
 	}
 }
 
-func testStrictServer(t *testing.T) (s *smtp.Server, c net.Conn, scanner *bufio.Scanner) {
+func testStrictServer(t *testing.T) (s *Server, c net.Conn, scanner *bufio.Scanner) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	s = smtp.NewServer(new(backend))
-	s.Domain = "localhost"
-	s.AllowInsecureAuth = true
-	s.AuthDisabled = true
-	s.Strict = true
+	s = NewServer(
+		new(backend),
+		Domain("localhost"),
+		WriteTimeout(10*time.Second),
+		ReadTimeout(10*time.Second),
+		MaxMessageBytes(1024*1024),
+		MaxRecipients(50),
+		AllowInsecureAuth(),
+		DisableAuth(),
+		StrictMode(),
+	)
 
 	go s.Serve(l)
 
@@ -592,8 +604,8 @@ func TestStrictServerBad(t *testing.T) {
 }
 
 func TestServer_lmtpOK(t *testing.T) {
-	be, s, c, scanner := testServerGreeted(t, func(s *smtp.Server) {
-		s.LMTP = true
+	be, s, c, scanner := testServerGreeted(t, func(s *Server) {
+		s.lmtp = true
 	})
 	defer s.Close()
 	defer c.Close()

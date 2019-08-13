@@ -59,4 +59,5 @@ type Session interface {
 type DataContext interface {
 	SetStatus(rcpt string, status *SMTPError)
 	StartDelivery(ctx context.Context, rcpt string)
+	GetXForward() XForward
 }

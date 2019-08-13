@@ -88,6 +88,12 @@ func AllowInsecureAuth() Option {
 	})
 }
 
+func AllowXForward() Option {
+	return optionFunc(func(server *Server) {
+		server.allowXForward = true
+	})
+}
+
 func StrictMode() Option {
 	return optionFunc(func(server *Server) {
 		server.strict = true
@@ -139,6 +145,7 @@ type Server struct {
 	maxRecipients     int
 	maxMessageBytes   int
 	allowInsecureAuth bool
+	allowXForward     bool
 	strict            bool
 	debug             io.Writer
 	errorLog          Logger
@@ -156,9 +163,8 @@ type Server struct {
 	caps     []string
 	auths    map[string]SaslServerFactory
 	done     chan struct{}
-
-	locker sync.Mutex
-	conns  map[*Conn]struct{}
+	locker   sync.Mutex
+	conns    map[*Conn]struct{}
 }
 
 // new creates a new SMTP server.

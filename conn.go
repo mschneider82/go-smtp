@@ -23,17 +23,21 @@ type ConnectionState struct {
 }
 
 type Conn struct {
-	conn      net.Conn
-	text      *textproto.Conn
-	server    *Server
-	helo      string
-	nbrErrors int
-	session   Session
-	locker    sync.Mutex
-
+	conn          net.Conn
+	text          *textproto.Conn
+	server        *Server
+	helo          string
+	nbrErrors     int
+	session       Session
+	locker        sync.Mutex
+	XForward      *XForward
 	fromReceived  bool
 	recipients    []string
 	recipientsmap map[string]struct{}
+}
+
+type XForward struct {
+	Name, Addr, Proto, Helo string
 }
 
 func newConn(c net.Conn, s *Server) *Conn {
@@ -41,6 +45,7 @@ func newConn(c net.Conn, s *Server) *Conn {
 		server:        s,
 		conn:          c,
 		recipientsmap: make(map[string]struct{}),
+		XForward:      new(XForward),
 	}
 
 	sc.init()
@@ -108,6 +113,8 @@ func (c *Conn) handle(cmd string, arg string) {
 			c.WriteResponse(500, EnhancedCode{5, 5, 1}, "This is not a LMTP server")
 		}
 		c.handleGreet(enhanced, arg)
+	case "XFORWARD":
+		c.handleXForward(arg)
 	case "MAIL":
 		c.handleMail(arg)
 	case "RCPT":
@@ -226,11 +233,38 @@ func (c *Conn) handleGreet(enhanced bool, arg string) {
 		if c.server.maxMessageBytes > 0 {
 			caps = append(caps, fmt.Sprintf("SIZE %v", c.server.maxMessageBytes))
 		}
+		if c.server.AllowXForward {
+			caps = append(caps, "XFORWARD NAME ADDR PROTO HELO")
+		}
 
 		args := []string{"Hello " + domain}
 		args = append(args, caps...)
 		c.WriteResponse(250, NoEnhancedCode, args...)
 	}
+}
+
+// handleXForward client send xforward infos
+func (c *Conn) handleXForward(arg string) {
+	// arg can be          NAME=example.com ADDR=192.168.0.1 PROTO=ESMTP
+	// or/and just         HELO=mail.example.com
+	args := strings.Split(arg, " ")
+	for _, a := range args {
+		kv := strings.Split(a, "=")
+		switch strings.ToUpper(kv[0]) {
+		case "NAME":
+			c.XForward.Name = kv[1]
+		case "ADDR":
+			c.XForward.Addr = kv[1]
+		case "PROTO":
+			c.XForward.Proto = kv[1]
+		case "HELO":
+			c.XForward.Helo = kv[1]
+		default:
+			c.WriteResponse(501, EnhancedCode{2, 5, 1}, "Bad command parameter syntax")
+			return
+		}
+	}
+	c.WriteResponse(250, EnhancedCode{2, 0, 0}, "Ok")
 }
 
 // READY state -> waiting for MAIL
@@ -470,7 +504,7 @@ func (c *Conn) handleData(arg string) {
 		msg          string
 	)
 	r := newDataReader(c)
-	dataContext := newdataContext()
+	dataContext := newdataContext(c.XForward)
 	err := c.Session().Data(r, dataContext)
 	io.Copy(ioutil.Discard, r) // Make sure all the data has been consumed
 	if err != nil {
@@ -520,11 +554,13 @@ type rcptStatus struct {
 
 type dataContext struct {
 	rcptStatus map[string]*rcptStatus
+	xforwarded *XForward
 }
 
-func newdataContext() *dataContext {
+func newdataContext(xforwarded *XForward) *dataContext {
 	return &dataContext{
 		rcptStatus: make(map[string]*rcptStatus),
+		xforwarded: xforwarded,
 	}
 }
 
@@ -539,6 +575,10 @@ func (s *dataContext) StartDelivery(ctx context.Context, rcpt string) {
 		ch:  make(chan *SMTPError, 1),
 		ctx: ctx,
 	}
+}
+
+func (s *dataContext) GetXForward() XForward {
+	return *s.xforwarded
 }
 
 func (c *Conn) Reject() {
@@ -599,4 +639,5 @@ func (c *Conn) reset() {
 	c.fromReceived = false
 	c.recipients = nil
 	c.recipientsmap = make(map[string]struct{})
+	c.XForward = new(XForward)
 }

@@ -1,10 +1,11 @@
 # go-smtp
 
-[![GoDoc](https://godoc.org/github.com/emersion/go-smtp?status.svg)](https://godoc.org/github.com/emersion/go-smtp)
-[![builds.sr.ht status](https://builds.sr.ht/~emersion/go-smtp.svg)](https://builds.sr.ht/~emersion/go-smtp?)
-[![codecov](https://codecov.io/gh/emersion/go-smtp/branch/master/graph/badge.svg)](https://codecov.io/gh/emersion/go-smtp)
+[![GoDoc](https://godoc.org/github.com/mschneider82/go-smtp?status.svg)](https://godoc.org/github.com/mschneider82/go-smtp)
+[![codecov](https://codecov.io/gh/mschneider82/go-smtp/branch/master/graph/badge.svg)](https://codecov.io/gh/mschneider82/go-smtp)
 
-An ESMTP client and server library written in Go.
+This is a forked version of go-smtp, changed API to function options.
+Added NewDefaultBackend and DefaultSession for easier usage.
+Client has a own package
 
 ## Features
 
@@ -13,84 +14,25 @@ An ESMTP client and server library written in Go.
 * UTF-8 support for subject and message
 * [LMTP](https://tools.ietf.org/html/rfc2033) support
 
-## Usage
-
-### Client
-
-```go
-package main
-
-import (
-	"log"
-	"strings"
-
-	"github.com/emersion/go-sasl"
-	"github.com/emersion/go-smtp"
-)
-
-func main() {
-	// Set up authentication information.
-	auth := sasl.NewPlainClient("", "user@example.com", "password")
-
-	// Connect to the server, authenticate, set the sender and recipient,
-	// and send the email all in one step.
-	to := []string{"recipient@example.net"}
-	msg := strings.NewReader("To: recipient@example.net\r\n" +
-		"Subject: discount Gophers!\r\n" +
-		"\r\n" +
-		"This is the email body.\r\n")
-	err := smtp.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
-	if err != nil {
-		log.Fatal(err)
-	}
-}
-```
-
-If you need more control, you can use `Client` instead.
-
 ### SMTP Server
 
 ```go
 package main
 
 import (
-	"errors"
 	"io"
 	"io/ioutil"
 	"log"
 	"time"
 
-	"github.com/emersion/go-smtp"
+	"github.com/mschneider82/go-smtp"
 )
 
-// The Backend implements SMTP server methods.
-type Backend struct{}
-
-// Login handles a login command with username and password.
-func (bkd *Backend) Login(state *smtp.ConnectionState, username, password string) (smtp.Session, error) {
-	if username != "username" || password != "password" {
-		return nil, errors.New("Invalid username or password")
-	}
-	return &Session{}, nil
-}
-
-// AnonymousLogin requires clients to authenticate using SMTP AUTH before sending emails
-func (bkd *Backend) AnonymousLogin(state *smtp.ConnectionState) (smtp.Session, error) {
-	return nil, smtp.ErrAuthRequired
-}
-
 // A Session is returned after successful login.
-type Session struct{}
-
-func (s *Session) Mail(from string) error {
-	log.Println("Mail from:", from)
-	return nil
+type Session struct{
+	smtp.DefaultSession
 }
 
-func (s *Session) Rcpt(to string) error {
-	log.Println("Rcpt to:", to)
-	return nil
-}
 
 func (s *Session) Data(r io.Reader, d smtp.DataContext) error {
 	if b, err := ioutil.ReadAll(r); err != nil {
@@ -101,27 +43,20 @@ func (s *Session) Data(r io.Reader, d smtp.DataContext) error {
 	return nil
 }
 
-func (s *Session) Reset() {}
-
-func (s *Session) Logout() error {
-	return nil
-}
-
 func main() {
-	be := &Backend{}
+	err := smtp.NewServer(
+		smtp.NewDefaultBackend(&Session{}),
+		smtp.Addr(":1025"),
+		smtp.Domain("localhost"),
+		smtp.WriteTimeout(10*time.Second),
+		smtp.ReadTimeout(10*time.Second),
+		smtp.MaxMessageBytes(1024*1024),
+		smtp.MaxRecipients(50),
+		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
+	).ListenAndServe()
 
-	s := smtp.NewServer(be)
-
-	s.Addr = ":1025"
-	s.Domain = "localhost"
-	s.ReadTimeout = 10 * time.Second
-	s.WriteTimeout = 10 * time.Second
-	s.MaxMessageBytes = 1024 * 1024
-	s.MaxRecipients = 50
-	s.AllowInsecureAuth = true
-
-	log.Println("Starting server at", s.Addr)
-	if err := s.ListenAndServe(); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 }
@@ -153,36 +88,12 @@ import (
 	"time"
 	"fmt"
 
-	"github.com/emersion/go-smtp"
+	"github.com/mschneider82/go-smtp"
 )
-
-// The Backend implements LMTP server methods.
-type Backend struct{}
-
-// Login handles a login command with username and password.
-func (be *Backend) Login(state *smtp.ConnectionState, username, password string) (smtp.Session, error) {
-	return nil, smtp.ErrAuthUnsupported
-}
-
-// AnonymousLogin requires clients to authenticate using SMTP AUTH before sending emails
-func (be *Backend) AnonymousLogin(state *smtp.ConnectionState) (smtp.Session, error) {
-	return &Session{}, nil
-}
 
 // Session is returned for every connection
 type Session struct{
-	RcptTos     []string
-}
-
-func (s *Session) Mail(from string) error {
-	log.Println("Mail from:", from)
-	return nil
-}
-
-func (s *Session) Rcpt(to string) error {
-	log.Println("Rcpt to:", to)
-	s.RcptTos = append(s.RcptTos, to)
-	return nil
+	smtp.DefaultSession
 }
 
 func (s *Session) Data(r io.Reader, dataContext smtp.DataContext) error {
@@ -193,7 +104,7 @@ func (s *Session) Data(r io.Reader, dataContext smtp.DataContext) error {
 	
 	globalCtx := context.Background()
 
-	for i, rcpt := range s.RcptTos {
+	for i, rcpt := range s.Rcpts {
 		rcptCtx, _ := context.WithTimeout(globalCtx, 2*time.Second)
 		// we have to assing i and rcpt new to access them in the go() routine
 		rcpt := rcpt
@@ -218,31 +129,21 @@ func (s *Session) Data(r io.Reader, dataContext smtp.DataContext) error {
 	return nil
 }
 
-func (s *Session) Reset() {
-	// we need to reset our rcptTo's slice:
-	s.RcptTos = []string{}
-}
-
-func (s *Session) Logout() error {
-	return nil
-}
-
 func main() {
-	be := &Backend{}
+	err := smtp.NewServer(
+		smtp.NewDefaultBackend(&Session{}),
+		smtp.Addr(":1025"),
+		smtp.Domain("localhost"),
+		smtp.WriteTimeout(10*time.Second),
+		smtp.ReadTimeout(10*time.Second),
+		smtp.MaxMessageBytes(1024*1024),
+		smtp.MaxRecipients(50),
+		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
+		smtp.LMTP(),
+	).ListenAndServe()
 
-	s := smtp.NewServer(be)
-
-	s.LMTP = true
-	s.Addr = ":1025"
-	s.Domain = "localhost"
-	s.ReadTimeout = 10 * time.Second
-	s.WriteTimeout = 10 * time.Second
-	s.MaxMessageBytes = 1024 * 1024
-	s.MaxRecipients = 50
-	s.AllowInsecureAuth = true
-
-	log.Println("Starting LMTP Server at", s.Addr)
-	if err := s.ListenAndServe(); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 }

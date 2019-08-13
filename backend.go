@@ -11,6 +11,25 @@ var (
 	ErrAuthUnsupported = errors.New("Authentication not supported")
 )
 
+// The DefaultBackend
+type DefaultBackend struct {
+	s Session
+}
+
+func NewDefaultBackend(s Session) *DefaultBackend {
+	return &DefaultBackend{s: s}
+}
+
+// Login returns a session
+func (be *DefaultBackend) Login(state *ConnectionState, username, password string) (Session, error) {
+	return be.s, nil
+}
+
+// AnonymousLogin is not implemented in default backend
+func (be *DefaultBackend) AnonymousLogin(state *ConnectionState) (Session, error) {
+	return be.s, nil
+}
+
 // A SMTP server backend.
 type Backend interface {
 	// Authenticate a user. Return smtp.ErrAuthUnsupported if you don't want to

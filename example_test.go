@@ -5,7 +5,6 @@
 package smtp_test
 
 import (
-	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -14,12 +13,13 @@ import (
 	"time"
 
 	"github.com/emersion/go-sasl"
-	"github.com/emersion/go-smtp"
+	"github.com/mschneider82/go-smtp"
+	"github.com/mschneider82/go-smtp/smtpclient"
 )
 
 func ExampleDial() {
 	// Connect to the remote SMTP server.
-	c, err := smtp.Dial("mail.example.com:25")
+	c, err := smtpclient.Dial("mail.example.com:25")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,7 +66,7 @@ func ExampleSendMail_PlainAuth() {
 	hostname := "mail.example.com"
 	auth := sasl.NewPlainClient("", "user@example.com", "password")
 
-	err := smtp.SendMail(hostname+":25", auth, from, recipients, msg)
+	err := smtpclient.SendMail(hostname+":25", auth, from, recipients, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -83,39 +83,15 @@ func ExampleSendMail() {
 		"Subject: discount Gophers!\r\n" +
 		"\r\n" +
 		"This is the email body.\r\n")
-	err := smtp.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
+	err := smtpclient.SendMail("mail.example.com:25", auth, "sender@example.org", to, msg)
 	if err != nil {
 		log.Fatal(err)
 	}
 }
 
-// The Backend implements SMTP server methods.
-type Backend struct{}
-
-// Login handles a login command with username and password.
-func (bkd *Backend) Login(state *smtp.ConnectionState, username, password string) (smtp.Session, error) {
-	if username != "username" || password != "password" {
-		return nil, errors.New("Invalid username or password")
-	}
-	return &Session{}, nil
-}
-
-// AnonymousLogin requires clients to authenticate using SMTP AUTH before sending emails
-func (bkd *Backend) AnonymousLogin(state *smtp.ConnectionState) (smtp.Session, error) {
-	return nil, smtp.ErrAuthRequired
-}
-
 // A Session is returned after successful login.
-type Session struct{}
-
-func (s *Session) Mail(from string) error {
-	log.Println("Mail from:", from)
-	return nil
-}
-
-func (s *Session) Rcpt(to string) error {
-	log.Println("Rcpt to:", to)
-	return nil
+type Session struct {
+	smtp.DefaultSession
 }
 
 func (s *Session) Data(r io.Reader, sc smtp.DataContext) error {
@@ -133,22 +109,20 @@ func (s *Session) Logout() error {
 	return nil
 }
 
-func ExampleNewServer() {
-	be := &Backend{}
+func ExampleNew() {
+	err := smtp.NewServer(
+		smtp.NewDefaultBackend(&Session{}),
+		smtp.Addr(":1025"),
+		smtp.Domain("localhost"),
+		smtp.WriteTimeout(10*time.Second),
+		smtp.ReadTimeout(10*time.Second),
+		smtp.MaxMessageBytes(1024*1024),
+		smtp.MaxRecipients(50),
+		smtp.AllowInsecureAuth(),
+		smtp.DisableAuth(),
+	).ListenAndServe()
 
-	s := smtp.NewServer(be)
-
-	s.Addr = ":1025"
-	s.Domain = "localhost"
-	s.WriteTimeout = 10 * time.Second
-	s.ReadTimeout = 10 * time.Second
-	s.MaxMessageBytes = 1024 * 1024
-	s.MaxRecipients = 50
-	s.Network = "tcp" // Or unix
-	s.AllowInsecureAuth = true
-
-	log.Println("Starting server at", s.Addr)
-	if err := s.ListenAndServe(); err != nil {
+	if err != nil {
 		log.Fatal(err)
 	}
 }

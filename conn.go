@@ -233,7 +233,7 @@ func (c *Conn) handleGreet(enhanced bool, arg string) {
 		if c.server.maxMessageBytes > 0 {
 			caps = append(caps, fmt.Sprintf("SIZE %v", c.server.maxMessageBytes))
 		}
-		if c.server.AllowXForward {
+		if c.server.allowXForward {
 			caps = append(caps, "XFORWARD NAME ADDR PROTO HELO")
 		}
 

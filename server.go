@@ -37,12 +37,12 @@ type Server struct {
 	MaxRecipients     int
 	MaxMessageBytes   int
 	AllowInsecureAuth bool
+	AllowXForward     bool
 	Strict            bool
 	Debug             io.Writer
 	ErrorLog          Logger
 	ReadTimeout       time.Duration
 	WriteTimeout      time.Duration
-
 	// If set, the AUTH command will not be advertised and authentication
 	// attempts will be rejected. This setting overrides AllowInsecureAuth.
 	AuthDisabled bool
@@ -54,9 +54,8 @@ type Server struct {
 	caps     []string
 	auths    map[string]SaslServerFactory
 	done     chan struct{}
-
-	locker sync.Mutex
-	conns  map[*Conn]struct{}
+	locker   sync.Mutex
+	conns    map[*Conn]struct{}
 }
 
 // New creates a new SMTP server.

@@ -12,6 +12,8 @@ func parseCmd(line string) (cmd string, arg string, err error) {
 	switch {
 	case strings.HasPrefix(strings.ToUpper(line), "STARTTLS"):
 		return "STARTTLS", "", nil
+	case strings.HasPrefix(strings.ToUpper(line), "XFORWARD"):
+		return "XFORWARD", strings.Trim(line[9:], " \n\r"), nil
 	case l == 0:
 		return "", "", nil
 	case l < 4:

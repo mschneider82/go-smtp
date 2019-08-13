@@ -114,7 +114,11 @@ func (c *Conn) handle(cmd string, arg string) {
 		}
 		c.handleGreet(enhanced, arg)
 	case "XFORWARD":
-		c.handleXForward(arg)
+		if !c.server.AllowXForward {
+			c.unrecognizedCommand(cmd)
+		} else {
+			c.handleXForward(arg)
+		}
 	case "MAIL":
 		c.handleMail(arg)
 	case "RCPT":

@@ -5,7 +5,7 @@
 
 This is a forked version of go-smtp, changed API to function options.
 Added NewDefaultBackend and DefaultSession for easier usage.
-Client has a own package
+Client has a own package. Added XForward support
 
 ## Features
 
@@ -13,6 +13,7 @@ Client has a own package
 * Support for SMTP [AUTH](https://tools.ietf.org/html/rfc4954) and [PIPELINING](https://tools.ietf.org/html/rfc2920)
 * UTF-8 support for subject and message
 * [LMTP](https://tools.ietf.org/html/rfc2033) support
+* [XFORWARD](http://www.postfix.org/XFORWARD_README.html) support
 
 ### SMTP Server
 

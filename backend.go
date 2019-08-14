@@ -16,6 +16,7 @@ type DefaultBackend struct {
 	s Session
 }
 
+// NewDefaultBackend creates a backend without Authentication
 func NewDefaultBackend(s Session) Backend {
 	return &DefaultBackend{s: s}
 }

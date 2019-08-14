@@ -16,7 +16,7 @@ type DefaultBackend struct {
 	s Session
 }
 
-func NewDefaultBackend(s Session) *DefaultBackend {
+func NewDefaultBackend(s Session) Backend {
 	return &DefaultBackend{s: s}
 }
 

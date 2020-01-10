@@ -509,6 +509,7 @@ func (c *Conn) handleData(arg string) {
 	)
 	r := newDataReader(c)
 	dataContext := newdataContext(c.XForward)
+	dataContext.helo = c.helo
 	err := c.Session().Data(r, dataContext)
 	io.Copy(ioutil.Discard, r) // Make sure all the data has been consumed
 	if err != nil {
@@ -559,6 +560,7 @@ type rcptStatus struct {
 type dataContext struct {
 	rcptStatus map[string]*rcptStatus
 	xforwarded *XForward
+	helo       string
 }
 
 func newdataContext(xforwarded *XForward) *dataContext {
@@ -583,6 +585,10 @@ func (s *dataContext) StartDelivery(ctx context.Context, rcpt string) {
 
 func (s *dataContext) GetXForward() XForward {
 	return *s.xforwarded
+}
+
+func (s *dataContext) GetHelo() string {
+	return s.helo
 }
 
 func (c *Conn) Reject() {

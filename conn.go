@@ -523,9 +523,13 @@ func (c *Conn) handleData(arg string) {
 			msg = "Error: transaction failed, blame it on the weather: " + err.Error()
 		}
 	} else {
-		code = 250
-		enhancedCode = EnhancedCode{2, 0, 0}
-		msg = "OK: queued"
+		if dataContext.smtpresponse == nil {
+			code = 250
+			enhancedCode = EnhancedCode{2, 0, 0}
+			msg = "OK: queued"
+		} else {
+			code, enhancedCode, msg = dataContext.smtpresponse.Code, dataContext.smtpresponse.EnhancedCode, dataContext.smtpresponse.Message
+		}
 	}
 
 	if c.server.lmtp {
@@ -558,9 +562,10 @@ type rcptStatus struct {
 }
 
 type dataContext struct {
-	rcptStatus map[string]*rcptStatus
-	xforwarded *XForward
-	helo       string
+	rcptStatus   map[string]*rcptStatus
+	xforwarded   *XForward
+	helo         string
+	smtpresponse *SMTPError
 }
 
 func newdataContext(xforwarded *XForward) *dataContext {
@@ -568,6 +573,10 @@ func newdataContext(xforwarded *XForward) *dataContext {
 		rcptStatus: make(map[string]*rcptStatus),
 		xforwarded: xforwarded,
 	}
+}
+
+func (s *dataContext) SetSMTPResponse(response *SMTPError) {
+	s.smtpresponse = response
 }
 
 func (s *dataContext) SetStatus(rcpt string, status *SMTPError) {

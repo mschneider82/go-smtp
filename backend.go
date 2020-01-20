@@ -58,7 +58,10 @@ type Session interface {
 }
 
 type DataContext interface {
+	// SetStatus is used for LMTP only to set the answer for an Recipient
 	SetStatus(rcpt string, status *SMTPError)
+	// SetSMTPResponse can be used to overwrite default SMTP Accept Message after DATA finished (not for LMTP)
+	SetSMTPResponse(response *SMTPError)
 	StartDelivery(ctx context.Context, rcpt string)
 	GetXForward() XForward
 	GetHelo() string

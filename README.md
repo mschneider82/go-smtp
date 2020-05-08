@@ -14,6 +14,7 @@ Client has a own package. Added XForward support
 * UTF-8 support for subject and message
 * [LMTP](https://tools.ietf.org/html/rfc2033) support
 * [XFORWARD](http://www.postfix.org/XFORWARD_README.html) support
+* Since v1.1.2: Keep \r\n in Data Reader (textproto DotReader replaces it to \n)
 
 ### SMTP Server
 

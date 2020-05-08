@@ -310,7 +310,7 @@ func (r *Reader) ReadResponse(expectCode int) (code int, message string, err err
 // rewrites the "\r\n" line endings into the simpler "\n",
 // removes leading dot escapes if present, and stops with error io.EOF
 // after consuming (and discarding) the end-of-sequence line.
-func (r *Reader) DotReader() io.Reader {
+func (r *Reader) DotReader2() io.Reader {
 	r.closeDot()
 	r.dot = &dotReader{r: r}
 	return r.dot
@@ -427,7 +427,7 @@ func (r *Reader) closeDot() {
 //
 // See the documentation for the DotReader method for details about dot-encoding.
 func (r *Reader) ReadDotBytes() ([]byte, error) {
-	return ioutil.ReadAll(r.DotReader())
+	return ioutil.ReadAll(r.DotReader2())
 }
 
 // ReadDotLines reads a dot-encoding and returns a slice
@@ -816,7 +816,7 @@ func isASCIILetter(b byte) bool {
 // These embedded types carry methods with them;
 // see the documentation of those types for details.
 type TextConn struct {
-	textproto.Reader
+	Reader
 	textproto.Writer
 	textproto.Pipeline
 	conn io.ReadWriteCloser
@@ -825,7 +825,7 @@ type TextConn struct {
 // NewConn returns a new Conn using conn for I/O.
 func NewTextConn(conn io.ReadWriteCloser) *TextConn {
 	return &TextConn{
-		Reader: textproto.Reader{R: bufio.NewReader(conn)},
+		Reader: Reader{R: bufio.NewReader(conn)},
 		Writer: textproto.Writer{W: bufio.NewWriter(conn)},
 		conn:   conn,
 	}

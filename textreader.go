@@ -352,7 +352,7 @@ func (d *dotReader) Read(b []byte) (n int, err error) {
 			}
 			if c == '\r' {
 				d.state = stateCR
-				continue
+				//continue
 			}
 			d.state = stateData
 

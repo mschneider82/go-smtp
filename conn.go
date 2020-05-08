@@ -8,7 +8,6 @@ import (
 	"io"
 	"io/ioutil"
 	"net"
-	"net/textproto"
 	"runtime/debug"
 	"strconv"
 	"strings"
@@ -24,7 +23,7 @@ type ConnectionState struct {
 
 type Conn struct {
 	conn          net.Conn
-	text          *textproto.Conn
+	text          *TextConn
 	server        *Server
 	helo          string
 	nbrErrors     int
@@ -66,7 +65,8 @@ func (c *Conn) init() {
 		}
 	}
 
-	c.text = textproto.NewConn(rwc)
+	//c.text = textproto.NewConn(rwc)
+	c.text = NewTextConn(rwc)
 }
 
 func (c *Conn) unrecognizedCommand(cmd string) {

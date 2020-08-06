@@ -13,22 +13,27 @@ var (
 
 // The DefaultBackend
 type DefaultBackend struct {
-	s Session
+	s SessionFactory
+}
+
+// SessionFactory Creates a New session for each Connection
+type SessionFactory interface {
+	New() Session
 }
 
 // NewDefaultBackend creates a backend without Authentication
-func NewDefaultBackend(s Session) Backend {
+func NewDefaultBackend(s SessionFactory) Backend {
 	return &DefaultBackend{s: s}
 }
 
 // Login returns a session
 func (be *DefaultBackend) Login(state *ConnectionState, username, password string) (Session, error) {
-	return be.s, nil
+	return be.s.New(), nil
 }
 
 // AnonymousLogin is not implemented in default backend
 func (be *DefaultBackend) AnonymousLogin(state *ConnectionState) (Session, error) {
-	return be.s, nil
+	return be.s.New(), nil
 }
 
 // A SMTP server backend.

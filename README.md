@@ -47,7 +47,7 @@ func (s *Session) Data(r io.Reader, d smtp.DataContext) error {
 
 type sessionFactory struct{}
 
-func (s *sessionFactory) New() *smtp.Session {
+func (s *sessionFactory) New() smtp.Session {
 	return &Session{}
 }
 

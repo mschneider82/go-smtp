@@ -45,9 +45,15 @@ func (s *Session) Data(r io.Reader, d smtp.DataContext) error {
 	return nil
 }
 
+type sessionFactory struct{}
+
+func (s *sessionFactory) New() *smtp.Session {
+	return &Session{}
+}
+
 func main() {
 	err := smtp.NewServer(
-		smtp.NewDefaultBackend(&Session{}),
+		smtp.NewDefaultBackend(&sessionFactory{}),
 		smtp.Addr(":1025"),
 		smtp.Domain("localhost"),
 		smtp.WriteTimeout(10*time.Second),
